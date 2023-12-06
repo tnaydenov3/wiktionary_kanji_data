@@ -24,7 +24,6 @@ def get_kanji_info(kanji):
 
         kj_zhuyin = ''
         kj_kana = ''
-        kj_jyutping = ''
         kj_hangul = ''
 
         # Span markers
@@ -44,11 +43,11 @@ def get_kanji_info(kanji):
         kj_disambig = get_disambig(soup)
 
         # Get reading data
-        kj_zhuyin, kj_jyutping = get_zhuyin_jyutping(soup_chinese)
-        kj_kana = get_kana(soup_japanese)
-        kj_hangul = get_hangul(soup_korean)
+        kj_zhuyin = get_zhuyin(soup_chinese) if soup_chinese else ''
+        kj_kana = get_kana(soup_japanese) if soup_japanese else ''
+        kj_hangul = get_hangul(soup_korean) if soup_korean else ''
         
-        kanji_info = [kanji, kj_radical, kj_composition, kj_disambig, kj_zhuyin, kj_kana, kj_jyutping, kj_hangul]        
+        kanji_info = [kanji, kj_radical, kj_composition, kj_disambig, kj_zhuyin, kj_kana, kj_hangul]        
         print(kanji_info)
 
         return '\t'.join(kanji_info)
@@ -56,28 +55,25 @@ def get_kanji_info(kanji):
     else:
         return f'Failed to retrieve information for {kanji}. Status code: {response.status_code}'
 
-def get_zhuyin_jyutping(soup_chinese):
-    kj_zhuyin, kj_jyutping = '', ''
-
+def get_zhuyin(soup_chinese):
+    kj_zhuyin = ''
     pronunciation_marker = soup_chinese.find('span', {'id': re.compile(r'Pronunciation')})
     if pronunciation_marker:
         ul_el = pronunciation_marker.find_next('ul')
-
         bopo_span = ul_el.find('span', {'class': 'Bopo'})
         if bopo_span:
             kj_zhuyin = bopo_span.text.strip()
-        
-        for a_el in ul_el.find_all('a'):
-            if 'Cantonese' in a_el.text.strip():
-                dl_el = a_el.find_next('dl')
-                for dd_el in dl_el.find_all('dd'):
-                    if 'Jyutping' in dd_el.text.strip():
-                        kj_jyutping = dd_el.find('span').text.strip()
-                        break
-    return kj_zhuyin, kj_jyutping
+    return kj_zhuyin
 
 def get_kana(soup_japanese):
-    kj_kana = ''
+    kan_on, kun = '', ''
+    for a_el in soup_japanese.find_all('a'):
+        if 'Kan-on' in a_el.text.strip() and kan_on == '':
+            kan_on = a_el.find_next('span').text.strip()
+        if 'Kun' in a_el.text.strip() and kun == '':
+            kun = a_el.find_next('span').text.strip()
+    kj_kana = kan_on + '; ' + kun
+    kj_kana = re.sub(r'\([^)]*\)', '', kj_kana).strip()
     return kj_kana
 
 def get_hangul(soup_korean):
