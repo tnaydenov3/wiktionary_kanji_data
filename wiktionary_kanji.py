@@ -44,10 +44,9 @@ def get_kanji_info(kanji):
         kj_disambig = get_disambig(soup)
 
         # Get reading data
-        # kj_zhuyin = get_zhuyin()
-        # kj_kana = get_kana()
-        # kj_jyutping = get_jyutping()
-        # kj_hangul = get_hangul()
+        kj_zhuyin, kj_jyutping = get_zhuyin_jyutping(soup_chinese)
+        kj_kana = get_kana(soup_japanese)
+        kj_hangul = get_hangul(soup_korean)
         
         kanji_info = [kanji, kj_radical, kj_composition, kj_disambig, kj_zhuyin, kj_kana, kj_jyutping, kj_hangul]        
         print(kanji_info)
@@ -56,6 +55,34 @@ def get_kanji_info(kanji):
         
     else:
         return f'Failed to retrieve information for {kanji}. Status code: {response.status_code}'
+
+def get_zhuyin_jyutping(soup_chinese):
+    kj_zhuyin, kj_jyutping = '', ''
+
+    pronunciation_marker = soup_chinese.find('span', {'id': re.compile(r'Pronunciation')})
+    if pronunciation_marker:
+        ul_el = pronunciation_marker.find_next('ul')
+
+        bopo_span = ul_el.find('span', {'class': 'Bopo'})
+        if bopo_span:
+            kj_zhuyin = bopo_span.text.strip()
+        
+        for a_el in ul_el.find_all('a'):
+            if 'Cantonese' in a_el.text.strip():
+                dl_el = a_el.find_next('dl')
+                for dd_el in dl_el.find_all('dd'):
+                    if 'Jyutping' in dd_el.text.strip():
+                        kj_jyutping = dd_el.find('span').text.strip()
+                        break
+    return kj_zhuyin, kj_jyutping
+
+def get_kana(soup_japanese):
+    kj_kana = ''
+    return kj_kana
+
+def get_hangul(soup_korean):
+    kj_hangul = ''
+    return kj_hangul
 
 def get_disambig(soup):
     kj_disambig = ''
