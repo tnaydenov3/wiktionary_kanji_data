@@ -78,6 +78,11 @@ def get_kana(soup_japanese):
 
 def get_hangul(soup_korean):
     kj_hangul = ''
+    pronunciation_marker = soup_korean.find('span', {'id': re.compile(r'Pronunciation')})
+    if pronunciation_marker:
+        ul_el = pronunciation_marker.find_next('ul')
+        kore_span = ul_el.find('span', {'class': 'Kore'})
+        kj_hangul = kore_span.text.strip().split('[')[-1][0]
     return kj_hangul
 
 def get_disambig(soup):
