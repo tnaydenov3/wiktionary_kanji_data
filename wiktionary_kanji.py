@@ -1,6 +1,9 @@
 import re
+import time
 import requests
 from bs4 import BeautifulSoup
+
+LOOKUP_SLEEP_TIME = 1
 
 ID_TRANSLINGUAL = 'Translingual'
 ID_CHINESE = 'Chinese'
@@ -9,6 +12,9 @@ ID_KOREAN = 'Korean'
 
 def get_kanji_info(kanji):
     url = f'https://en.wiktionary.org/wiki/{kanji}'
+
+    # Wait before looking up Kanji
+    time.sleep(LOOKUP_SLEEP_TIME)
 
     # Send a request to the Wiktionary page for the kanji
     response = requests.get(url)
@@ -74,6 +80,9 @@ def get_kana(soup_japanese):
             kun = a_el.find_next('span').text.strip()
     kj_kana = kan_on + '; ' + kun
     kj_kana = re.sub(r'\([^)]*\)', '', kj_kana).strip()
+    kj_kana = re.sub(r'←.*?;', '', kj_kana)
+    kj_kana = re.sub(r'←.*', '', kj_kana)
+
     return kj_kana
 
 def get_hangul(soup_korean):
@@ -82,7 +91,14 @@ def get_hangul(soup_korean):
     if pronunciation_marker:
         ul_el = pronunciation_marker.find_next('ul')
         kore_span = ul_el.find('span', {'class': 'Kore'})
-        kj_hangul = kore_span.text.strip().split('[')[-1][0]
+        if kore_span:
+            kj_hangul = kore_span.text.strip().split('[')[-1][0]
+        else:
+            for a_el in pronunciation_marker.find_all_next('a'):
+                a_text = a_el.text.strip()
+                if is_hangul(a_text):
+                    kj_hangul = a_text
+                    return kj_hangul
     return kj_hangul
 
 def get_disambig(soup):
@@ -100,11 +116,15 @@ def get_disambig(soup):
 
 def get_radical_and_composition(soup_translingual):
     mrk_han_char = soup_translingual.find('span', {'id': 'Han_character'})
-    p_text = mrk_han_char.find_next('p').text.strip()
+    p_el = mrk_han_char.find_next('p')
+    if p_el:
+        info_text = p_el.text.strip()
+    else:
+        info_text = mrk_han_char.find_next('li').text.strip()
 
-    kj_radical = p_text.split('(')[1].split('+')[0].strip().replace(',',':').replace('Kangxi radical','Kangxi')
+    kj_radical = info_text.split('(')[1].split('+')[0].strip().replace(',',':').replace('Kangxi radical','Kangxi')
 
-    kj_composition = p_text.split('composition ')[-1].strip() if 'composition' in p_text else ''
+    kj_composition = info_text.split('composition ')[-1].strip() if 'composition' in info_text else ''
     kj_composition = re.sub(r'\([^)]*\)', '', kj_composition).split(')')[0]
 
     return kj_radical, kj_composition
@@ -122,7 +142,10 @@ def extract_section_content(start_marker):
     return ''.join(content)
 
 def is_kanji(char):
-    return bool(re.match(r'^[\u4e00-\u9faf]$', char))
+    return bool(re.match(r'[\u4e00-\u9faf]', char))
+
+def is_hangul(char):
+    return bool(re.match(r'[\uac00-\ud7a3]', char))
 
 def main():
     input_filename = 'input.txt'
